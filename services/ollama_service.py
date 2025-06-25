@@ -2,9 +2,6 @@ import ollama
 import re, json
 import requests
 from googlesearch import search
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
 import os
 from dotenv import load_dotenv
 
@@ -13,21 +10,26 @@ load_dotenv()
 
 def classify_task(task):
     # Simple rule-based classification first
-    task_lower = task.lower()
+    task_lower = task.lower().strip()
     
-    # Email keywords
-    email_keywords = ['email', 'send email', 'compose email', 'write email', 'mail to', '@', 'send to', 'compose']
+    # Email keywords - need to be specific to avoid false matches
+    email_keywords = ['send email', 'compose email', 'write email', 'mail to', 'send to', 'email to']
     
-    # Search keywords  
-    search_keywords = ['search', 'find', 'look for', 'search for', 'google', 'lookup', 'find information']
+    # Search keywords - need to be specific to avoid false matches
+    search_keywords = ['search for', 'find information', 'look for', 'google', 'lookup', 'search']
     
     # Check for email patterns
     if any(keyword in task_lower for keyword in email_keywords) or '@' in task:
         return 'EMAIL'
     
-    # Check for search patterns
+    # Check for search patterns - be more specific
     if any(keyword in task_lower for keyword in search_keywords):
         return 'SEARCH'
+    
+    # For simple greetings and conversational inputs, return CHAT immediately
+    chat_keywords = ['hi', 'hello', 'hey', 'how are you', 'what\'s up', 'good morning', 'good afternoon', 'good evening']
+    if any(keyword in task_lower for keyword in chat_keywords) or len(task_lower) <= 3:
+        return 'CHAT'
     
     # For everything else, use AI classification as backup
     try:
@@ -42,7 +44,7 @@ def classify_task(task):
             return classification
         else:
             return 'CHAT'  # Default to chat
-    except:
+    except Exception as e:
         return 'CHAT'  # Default fallback
 
 def extract_email_details(task):
@@ -100,8 +102,8 @@ def perform_search(query, num_results=5):
     try:
         search_results = []
         
-        # Get search results from Google (fix the parameter issue)
-        search_urls = list(search(query, num_results=num_results, stop=num_results, pause=2))
+        # Get search results from Google (remove pause parameter)
+        search_urls = list(search(query, num_results=num_results))
         
         for i, url in enumerate(search_urls[:num_results]):
             try:
@@ -136,51 +138,12 @@ def perform_search(query, num_results=5):
     except Exception as e:
         return [{'error': f"Search failed: {str(e)}"}]
 
-def send_email(recipient, subject, body, sender_email=None, sender_password=None):
-    """
-    Send an email using SMTP
-    """
-    try:
-        # Email configuration - you'll need to set these
-        if not sender_email:
-            sender_email = os.getenv('EMAIL_ADDRESS', 'your-email@gmail.com')
-        if not sender_password:
-            sender_password = os.getenv('EMAIL_PASSWORD', 'your-app-password')
-        
-        # Create message
-        msg = MIMEMultipart()
-        msg['From'] = sender_email
-        msg['To'] = recipient
-        msg['Subject'] = subject
-        
-        # Add body to email
-        msg.attach(MIMEText(body, 'plain'))
-        
-        # Gmail SMTP configuration
-        server = smtplib.SMTP('smtp.gmail.com', 587)
-        server.starttls()  # Enable security
-        server.login(sender_email, sender_password)
-        
-        # Send email
-        text = msg.as_string()
-        server.sendmail(sender_email, recipient, text)
-        server.quit()
-        
-        return {
-            'success': True,
-            'message': f'Email sent successfully to {recipient}'
-        }
-        
-    except Exception as e:
-        return {
-            'success': False,
-            'error': f'Failed to send email: {str(e)}'
-        }
-
 def compose_and_send_email(task):
     """
-    Extract email details and send the email
+    Extract email details and send the email using the dedicated email service
     """
+    from email_service import send_email_with_env_config
+    
     # First extract the email details
     email_details = extract_email_details(task)
     
@@ -190,22 +153,22 @@ def compose_and_send_email(task):
             'error': 'Could not extract email details from your request'
         }
     
-    # Send the email
-    result = send_email(
+    # Send the email using the dedicated email service
+    success, message = send_email_with_env_config(
         recipient=email_details['recipient'],
         subject=email_details['subject'],
         body=email_details['body']
     )
     
-    if result['success']:
+    if success:
         return {
             'success': True,
             'details': email_details,
-            'message': result['message']
+            'message': message
         }
     else:
         return {
             'success': False,
             'details': email_details,
-            'error': result['error']
+            'error': message
         }
