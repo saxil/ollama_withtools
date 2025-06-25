@@ -4,13 +4,18 @@ from services.telegram_service import TelegramBot
 from services.ollama_service import classify_task, generate_chat_response,extract_email_details
 
 # Configure your SMTP and Telegram credentials here
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
 SMTP_HOST = "smtp.gmail.com"
 SMTP_PORT = 587
-SMTP_USER = "lucifer.ai.288@gmail.com"
-SMTP_PASS = "mfbjcjevynjezpaz"
+SMTP_USER = os.getenv('EMAIL_ADDRESS')
+SMTP_PASS = os.getenv('EMAIL_PASSWORD')
 SENDER_EMAIL = SMTP_USER
 
-TELEGRAM_TOKEN = "7834559734:AAHs3dNqnDSFCMRVy8uzPLHreTo0GAO2mJQ"
+TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN')
 
 def process_task(task):
     classification = classify_task(task)

@@ -169,6 +169,10 @@ email_config.py
 credentials.json
 token.json
 
+# Telegram tokens (sensitive)
+TELEGRAM_TOKEN
+*.token
+
 # Ollama models (optional - these can be large)
 # models/
 # *.gguf
