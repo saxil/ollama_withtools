@@ -1,0 +1,7 @@
+ollama
+python-telegram-bot==20.0
+requests
+telebot
+googlesearch-python
+flask
+python-dotenv
